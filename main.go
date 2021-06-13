@@ -8,12 +8,21 @@ import (
 )
 
 func main() {
-	c, err := ibverbs.NewContext("rxe_0", 1, 1)
+	c, err := ibverbs.NewRdmaContext("rxe_0", 1, 1)
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println(c)
 	pd := ibverbs.NewProtectDomain(c)
-	fmt.Println(pd)
+	fmt.Println("pd", pd)
+	mr, err := ibverbs.NewMemoryRegion(pd, 1024, false)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(mr, mr.RemoteKey())
+
+	// ---------------- close ---------------
+	fmt.Println(mr.Close())
 	fmt.Println(pd.Close())
+	fmt.Println(c.Close())
 }

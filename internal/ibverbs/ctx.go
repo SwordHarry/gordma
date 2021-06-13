@@ -13,14 +13,14 @@ import (
 	"unsafe"
 )
 
-type Context struct {
+type rdmaContext struct {
 	Name string
 	Port int
 	Guid net.HardwareAddr
 	ctx  *C.struct_ibv_context
 }
 
-func NewContext(name string, port,index int) (*Context, error) {
+func NewRdmaContext(name string, port,index int) (*rdmaContext, error) {
 	var count C.int
 	var ctx *C.struct_ibv_context
 	var guid net.HardwareAddr
@@ -56,7 +56,7 @@ func NewContext(name string, port,index int) (*Context, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("failed to open device %s", name)
 	}
-	return &Context{
+	return &rdmaContext{
 		Name: name,
 		ctx: ctx,
 		Port: port,
@@ -64,6 +64,11 @@ func NewContext(name string, port,index int) (*Context, error) {
 	}, nil
 }
 
-func (c *Context) Close() error  {
+func (c *rdmaContext) Close() error  {
+	errno := C.ibv_close_device(c.ctx)
+	if errno != 0 {
+		return errors.New("failed to close device")
+	}
+	c.ctx = nil
 	return nil
 }

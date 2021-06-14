@@ -23,7 +23,14 @@ func main() {
 	cq, err := ibverbs.NewCompletionQueue(c, 10)
 	fmt.Println(cq, err)
 
-	// ---------------- close ---------------
+	qp, err := ibverbs.NewQueuePair(pd, cq)
+
+	fmt.Println(qp, err)
+	fmt.Println(qp.Qpn())
+
+	fmt.Println("\n---------------- close ---------------")
+	fmt.Println(qp.Close())
+	fmt.Println(cq.Close())
 	fmt.Println(mr.Close())
 	fmt.Println(pd.Close())
 	fmt.Println(c.Close())

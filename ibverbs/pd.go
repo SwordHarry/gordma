@@ -10,10 +10,14 @@ type protectDomain struct {
 	pd *C.struct_ibv_pd
 }
 
-func NewProtectDomain(ctx *rdmaContext) *protectDomain {
-	return &protectDomain{
-		pd: C.ibv_alloc_pd(ctx.ctx),
+func NewProtectDomain(ctx *rdmaContext) (*protectDomain, error) {
+	pd, err := C.ibv_alloc_pd(ctx.ctx)
+	if err != nil {
+		return nil, err
 	}
+	return &protectDomain{
+		pd: pd,
+	}, err
 }
 
 func (p *protectDomain) Close() error {

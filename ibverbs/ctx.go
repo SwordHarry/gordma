@@ -56,6 +56,7 @@ func NewRdmaContext(name string, port, index int) (*rdmaContext, error) {
 	devicePtr := deviceList
 	device := *devicePtr
 	for device != nil && ctx == nil {
+		// TODO: device_name
 		ctx = C.ibv_open_device(device)
 		var gid C.union_ibv_gid
 		portC := C.uint8_t(port)

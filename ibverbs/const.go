@@ -17,3 +17,10 @@ const (
 const (
 	IBV_QPT_RC = C.IBV_QPT_RC
 )
+
+// wr action
+const (
+	IBV_WR_SEND = C.IBV_WR_SEND
+
+	IBV_SEND_SIGNALED = C.IBV_SEND_SIGNALED
+)

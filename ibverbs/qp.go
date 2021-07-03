@@ -13,31 +13,6 @@ import (
 	"unsafe"
 )
 
-type sendWorkRequest struct {
-	mr        *memoryRegion
-	sendWr    *C.struct_ibv_send_wr
-}
-
-type receiveWorkRequest struct {
-	mr        *memoryRegion
-	recvWr    *C.struct_ibv_recv_wr
-}
-
-func NewSendWorkRequest(mr *memoryRegion) *sendWorkRequest {
-	var sendWr C.struct_ibv_send_wr
-	return &sendWorkRequest{
-		mr:     mr,
-		sendWr: &sendWr,
-	}
-}
-
-func NewReceiveWorkRequest(mr *memoryRegion) *receiveWorkRequest  {
-	var recvWr C.struct_ibv_recv_wr
-	return &receiveWorkRequest{
-		mr:     mr,
-		recvWr: &recvWr,
-	}
-}
 
 // queuePair QP
 type queuePair struct {
@@ -166,6 +141,10 @@ func (q  *queuePair) PostSend(wr *sendWorkRequest) error {
 func (q *queuePair) PostSendImm(wr *sendWorkRequest,  imm uint32) error {
 	if imm > 0 {
 		// post_send_immediately
+		wr.sendWr.opcode = IBV_WR_SEND_WITH_IMM
+		// always send inline if there is immediate data
+		wr.sendWr.send_flags = IBV_SEND_INLINE
+		wr.sendWr.imm_data = C.uint32_t(imm)
 	} else {
 		// post_send
 		wr.sendWr.opcode = IBV_WR_SEND
@@ -173,9 +152,12 @@ func (q *queuePair) PostSendImm(wr *sendWorkRequest,  imm uint32) error {
 	}
 
 	if wr.mr != nil {
-
+		var sge C.struct_ibv_sge
+		wr.sendWr.sg_list = &sge
+		wr.sendWr.num_sge = 1
 	}  else  {
-
+		// send inline if there is no memory region to send
+		wr.sendWr.send_flags = IBV_SEND_INLINE
 	}
 	wr.sendWr.wr_id = C.uint64_t(uintptr(unsafe.Pointer(&(wr.sendWr))))
 	var bad *C.struct_ibv_send_wr

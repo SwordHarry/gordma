@@ -4,6 +4,7 @@ package ibverbs
 
 //#include <infiniband/verbs.h>
 import "C"
+import "errors"
 
 // access flag
 const (
@@ -22,7 +23,11 @@ const (
 const (
 	IBV_WR_SEND = C.IBV_WR_SEND
 	IBV_WR_SEND_WITH_IMM = C.IBV_WR_SEND_WITH_IMM
+	IBV_WR_RDMA_WRITE = C.IBV_WR_RDMA_WRITE
+	IBV_WR_RDMA_READ = C.IBV_WR_RDMA_READ
 
 	IBV_SEND_SIGNALED = C.IBV_SEND_SIGNALED
 	IBV_SEND_INLINE = C.IBV_SEND_INLINE
 )
+
+var QPClosedErr = errors.New("qp already closed")

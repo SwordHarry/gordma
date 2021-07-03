@@ -10,7 +10,6 @@ import (
 	"log"
 	"math/rand"
 	"time"
-	"unsafe"
 )
 
 
@@ -135,9 +134,20 @@ func (q *queuePair)  Ready2Send() error  {
 	return q.modify(&attr, mask)
 }
 
+/**
+QP action
+PostSend
+PostSendImm
+PostReceive
+PostRead
+PostWrite
+TODO: 将 sge 封装起来，尝试复用各个 Post 操作
+ */
+
 func (q  *queuePair) PostSend(wr *sendWorkRequest) error {
 	return q.PostSendImm(wr,0)
 }
+
 func (q *queuePair) PostSendImm(wr *sendWorkRequest,  imm uint32) error {
 	if imm > 0 {
 		// post_send_immediately
@@ -155,12 +165,85 @@ func (q *queuePair) PostSendImm(wr *sendWorkRequest,  imm uint32) error {
 		var sge C.struct_ibv_sge
 		wr.sendWr.sg_list = &sge
 		wr.sendWr.num_sge = 1
+		sge.addr = C.uint64_t(uintptr(wr.mr.mr.addr))
+		sge.length = C.uint32_t(wr.mr.mr.length)
+		sge.lkey = wr.mr.mr.lkey
 	}  else  {
 		// send inline if there is no memory region to send
 		wr.sendWr.send_flags = IBV_SEND_INLINE
 	}
-	wr.sendWr.wr_id = C.uint64_t(uintptr(unsafe.Pointer(&(wr.sendWr))))
+	wr.sendWr.wr_id = wr.createWrId()
 	var bad *C.struct_ibv_send_wr
 	errno := C.ibv_post_send(q.qp, &wr.sendWr, &bad)
 	return common.NewErrorOrNil("ibv_post_send", errno)
+}
+
+func (q *queuePair) PostReceive(wr *receiveWorkRequest) error  {
+	if q.qp == nil {
+		return QPClosedErr
+	}
+
+	var sge C.struct_ibv_sge
+	var bad *C.struct_ibv_recv_wr
+	wr.recvWr.sg_list = &sge
+	wr.recvWr.num_sge = 1
+	sge.addr = C.uint64_t(uintptr(wr.mr.mr.addr))
+	sge.length = C.uint32_t(wr.mr.mr.length)
+	sge.lkey = wr.mr.mr.lkey
+	wr.recvWr.wr_id = wr.createWrId()
+	errno := C.ibv_post_recv(q.qp, &wr.recvWr, &bad)
+	return common.NewErrorOrNil("ibv_post_recv", errno)
+}
+
+func (q *queuePair) PostWrite(wr *sendWorkRequest, remoteAddr uint64, rkey uint32) error  {
+	return q.PostWriteImm(wr, remoteAddr, rkey, 0)
+}
+
+func (q *queuePair) PostWriteImm(wr *sendWorkRequest, remoteAddr uint64, rkey uint32, imm uint32) error  {
+	if q.qp == nil {
+		return QPClosedErr
+	}
+
+	if imm > 0  {
+
+	} else {
+
+	}
+	var sge C.struct_ibv_sge
+	var bad *C.struct_ibv_send_wr
+	wr.sendWr.opcode = IBV_WR_RDMA_WRITE
+	wr.sendWr.send_flags = IBV_SEND_SIGNALED
+	wr.sendWr.sg_list = &sge
+	wr.sendWr.num_sge = 1
+	sge.addr = C.uint64_t(uintptr(wr.mr.mr.addr))
+	sge.length = C.uint32_t(wr.mr.mr.length)
+	sge.lkey = wr.mr.mr.lkey
+	// TODO: validate
+	wr.sendWr.wr.remoteAddr = remoteAddr
+	wr.sendWr.wr.rkey = rkey
+
+	wr.sendWr.wr_id = wr.createWrId()
+
+	errno := C.ibv_post_send(q.qp, &wr.sendWr,&bad)
+	return common.NewErrorOrNil("[PostWrite]ibv_post_send", errno)
+}
+
+func (q *queuePair) PostRead(wr *sendWorkRequest, remoteAddr uint64, rkey uint32) error {
+	var sge C.struct_ibv_sge
+	var bad *C.struct_ibv_send_wr
+	wr.sendWr.opcode = IBV_WR_RDMA_READ
+	wr.sendWr.send_flags = IBV_SEND_SIGNALED
+	wr.sendWr.sg_list = &sge
+	wr.sendWr.num_sge = 1
+	sge.addr = C.uint64_t(uintptr(wr.mr.mr.addr))
+	sge.length = C.uint32_t(wr.mr.mr.length)
+	sge.lkey = wr.mr.mr.lkey
+	// TODO: validate
+	wr.sendWr.wr.remoteAddr = remoteAddr
+	wr.sendWr.wr.rkey = rkey
+
+	wr.sendWr.wr_id = wr.createWrId()
+
+	errno := C.ibv_post_send(q.qp, &wr.sendWr,&bad)
+	return common.NewErrorOrNil("[PostWrite]ibv_post_send", errno)
 }
